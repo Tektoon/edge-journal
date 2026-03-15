@@ -1,18 +1,27 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { supabase } from "./supabase.js";
 
-const INSTRUMENTS = ["EUR/USD","GBP/USD","BTC/USD","ETH/USD","SPX500","NAS100","GOLD","OIL","Autre"];
-const STRATEGIES  = ["Breakout","Scalping","Swing","Trend Following","Mean Reversion","News Trading","Autre"];
-const SESSIONS    = ["London","New York","Asian","Overlap"];
+const DEFAULT_INSTRUMENTS = ["EUR/USD","GBP/USD","BTC/USD","ETH/USD","SPX500","NAS100","GOLD","OIL","DAX","Autre"];
+const DEFAULT_STRATEGIES  = ["Breakout","Scalping","Swing","Trend Following","Mean Reversion","News Trading","Autre"];
+const DEFAULT_SESSIONS    = ["London","New York","Asian","Overlap"];
+const SETTINGS_KEY        = "edge_settings";
 
 const fmt = (val) => (val >= 0 ? "+" : "") + Number(val).toFixed(0) + " $";
 const today = () => new Date().toISOString().split("T")[0];
-const emptyForm = () => ({
-  date:today(), instrument:"EUR/USD", direction:"LONG",
-  entry:"", exit:"", size:"", pnl:"", strategy:"Breakout",
-  session:"London", emotions:3, notes:"", tags:""
-});
 
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return { instruments: DEFAULT_INSTRUMENTS, strategies: DEFAULT_STRATEGIES, sessions: DEFAULT_SESSIONS };
+}
+
+function saveSettings(s) {
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch {}
+}
+
+/* ── tiny components ── */
 function Dots({ value }) {
   return (
     <div style={{ display:"flex", gap:3 }}>
@@ -60,7 +69,83 @@ function BarCard({ title, entries, pos, neg }) {
   );
 }
 
-/* ─── AUTH ─── */
+/* ── SETTINGS PANEL ── */
+function SettingsPanel({ settings, onChange }) {
+  const [newVals, setNewVals] = useState({ instruments:"", strategies:"", sessions:"" });
+
+  const addItem = (key) => {
+    const val = newVals[key].trim();
+    if (!val || settings[key].includes(val)) return;
+    // Insert before last item ("Autre") if it exists, else append
+    const list = [...settings[key]];
+    const autreIdx = list.indexOf("Autre");
+    if (autreIdx !== -1) list.splice(autreIdx, 0, val);
+    else list.push(val);
+    onChange({ ...settings, [key]: list });
+    setNewVals({ ...newVals, [key]: "" });
+  };
+
+  const removeItem = (key, item) => {
+    if (item === "Autre") return; // protect Autre
+    onChange({ ...settings, [key]: settings[key].filter(x => x !== item) });
+  };
+
+  const sections = [
+    { key:"instruments", label:"Instruments", placeholder:"ex: DAX, CAC40, SILVER…" },
+    { key:"strategies",  label:"Stratégies",  placeholder:"ex: ICT, SMC, Grid…" },
+    { key:"sessions",    label:"Sessions",    placeholder:"ex: Tokyo, Sydney…" },
+  ];
+
+  return (
+    <div>
+      {sections.map(sec => (
+        <div key={sec.key} style={S.card}>
+          <div style={S.cardTitle}>{sec.label}</div>
+          {/* list */}
+          <div style={{ display:"flex", flexWrap:"wrap", gap:8, margin:"14px 0 16px" }}>
+            {settings[sec.key].map(item => (
+              <div key={item} style={{ display:"flex", alignItems:"center", gap:5,
+                background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)",
+                borderRadius:8, padding:"5px 10px" }}>
+                <span style={{ fontSize:13, color:"#ddd" }}>{item}</span>
+                {item !== "Autre" && (
+                  <button onClick={()=>removeItem(sec.key, item)}
+                    style={{ background:"none", border:"none", color:"#ff4d6d", cursor:"pointer",
+                      fontSize:14, lineHeight:1, padding:0, marginLeft:2 }}>×</button>
+                )}
+              </div>
+            ))}
+          </div>
+          {/* add */}
+          <div style={{ display:"flex", gap:8 }}>
+            <input
+              value={newVals[sec.key]}
+              onChange={e=>setNewVals({...newVals,[sec.key]:e.target.value})}
+              onKeyDown={e=>e.key==="Enter"&&addItem(sec.key)}
+              style={{ ...S.inp, flex:1 }}
+              placeholder={sec.placeholder}/>
+            <button onClick={()=>addItem(sec.key)} style={{ ...S.addBtn, padding:"9px 16px" }}>
+              Ajouter
+            </button>
+          </div>
+        </div>
+      ))}
+
+      <div style={{ ...S.card, borderColor:"rgba(255,77,109,0.2)" }}>
+        <div style={S.cardTitle}>Réinitialiser</div>
+        <p style={{ fontSize:13, color:"#666", margin:"10px 0 14px" }}>
+          Remet les instruments, stratégies et sessions par défaut. Tes trades ne sont pas affectés.
+        </p>
+        <button onClick={()=>onChange({ instruments:DEFAULT_INSTRUMENTS, strategies:DEFAULT_STRATEGIES, sessions:DEFAULT_SESSIONS })}
+          style={S.delBtn}>
+          Réinitialiser les paramètres
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── AUTH ── */
 function AuthScreen() {
   const [mode,setMode] = useState("login");
   const [email,setEmail] = useState("");
@@ -122,9 +207,9 @@ function AuthScreen() {
             {loading?"…":mode==="login"?"Se connecter":mode==="signup"?"Créer le compte":"Envoyer le lien"}
           </button>
           <div style={{ display:"flex",flexDirection:"column",gap:8,marginTop:16,textAlign:"center" }}>
-            {mode!=="signup" && <button onClick={()=>{setMode("signup");setMsg(null);}} style={S.linkBtn}>Pas de compte ? Créer un compte</button>}
-            {mode!=="login" && <button onClick={()=>{setMode("login");setMsg(null);}} style={S.linkBtn}>Déjà un compte ? Se connecter</button>}
-            {mode==="login" && <button onClick={()=>{setMode("reset");setMsg(null);}} style={{ ...S.linkBtn,color:"#555" }}>Mot de passe oublié</button>}
+            {mode!=="signup"&&<button onClick={()=>{setMode("signup");setMsg(null);}} style={S.linkBtn}>Pas de compte ? Créer un compte</button>}
+            {mode!=="login"&&<button onClick={()=>{setMode("login");setMsg(null);}} style={S.linkBtn}>Déjà un compte ? Se connecter</button>}
+            {mode==="login"&&<button onClick={()=>{setMode("reset");setMsg(null);}} style={{ ...S.linkBtn,color:"#555" }}>Mot de passe oublié</button>}
           </div>
         </div>
       </div>
@@ -132,7 +217,7 @@ function AuthScreen() {
   );
 }
 
-/* ─── MAIN ─── */
+/* ── MAIN APP ── */
 export default function App() {
   const [session,setSession]   = useState(undefined);
   const [trades,setTrades]     = useState([]);
@@ -143,7 +228,19 @@ export default function App() {
   const [expanded,setExpanded] = useState(null);
   const [menuOpen,setMenuOpen] = useState(false);
   const [filter,setFilter]     = useState({ instrument:"",direction:"",strategy:"" });
-  const [form,setForm]         = useState(emptyForm());
+  const [settings,setSettings] = useState(loadSettings);
+  const [form,setForm]         = useState(null);
+
+  // init form after settings loaded
+  useEffect(()=>{
+    setForm({
+      date:today(), instrument:settings.instruments[0]||"", direction:"LONG",
+      entry:"", exit:"", size:"", pnl:"", strategy:settings.strategies[0]||"",
+      session:settings.sessions[0]||"", emotions:3, notes:"", tags:""
+    });
+  },[]);
+
+  const updateSettings = (next) => { setSettings(next); saveSettings(next); };
 
   useEffect(()=>{
     supabase.auth.getSession().then(({ data })=>setSession(data.session));
@@ -170,6 +267,7 @@ export default function App() {
   },[session,loadTrades]);
 
   async function addTrade() {
+    if (!form) return;
     setSyncing(true);
     await supabase.from("trades").insert({
       user_id:session.user.id, date:form.date, instrument:form.instrument,
@@ -179,7 +277,11 @@ export default function App() {
       emotions:parseInt(form.emotions)||3, notes:form.notes,
       tags:form.tags?form.tags.split(",").map(s=>s.trim()).filter(Boolean):[],
     });
-    setSyncing(false); setShowForm(false); setForm(emptyForm()); loadTrades();
+    setSyncing(false); setShowForm(false);
+    setForm({ date:today(), instrument:settings.instruments[0]||"", direction:"LONG",
+      entry:"", exit:"", size:"", pnl:"", strategy:settings.strategies[0]||"",
+      session:settings.sessions[0]||"", emotions:3, notes:"", tags:"" });
+    loadTrades();
   }
 
   async function deleteTrade(id) {
@@ -216,10 +318,16 @@ export default function App() {
 
   const byKey = k=>{ const m={}; trades.forEach(t=>{ m[t[k]]=(m[t[k]]||0)+t.pnl; }); return Object.entries(m).sort((a,b)=>b[1]-a[1]); };
 
-  const NAV=[{ id:"dashboard",icon:"▦",label:"Dashboard" },{ id:"journal",icon:"≡",label:"Journal" },{ id:"stats",icon:"◑",label:"Analytics" }];
+  const NAV=[
+    { id:"dashboard", icon:"▦", label:"Dashboard"  },
+    { id:"journal",   icon:"≡", label:"Journal"    },
+    { id:"stats",     icon:"◑", label:"Analytics"  },
+    { id:"settings",  icon:"⚙", label:"Paramètres" },
+  ];
 
   if (session===undefined) return <div style={{ display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:"#0a0d12",fontFamily:"'DM Mono',monospace",color:"#22d3a0",fontSize:13,letterSpacing:"0.1em" }}>CHARGEMENT…</div>;
   if (!session) return <AuthScreen/>;
+  if (!form) return null;
 
   return (
     <div style={S.root}>
@@ -274,18 +382,20 @@ export default function App() {
         <div style={S.header}>
           <div>
             <div style={{ fontWeight:900,fontSize:22,color:"#e8e8e8",letterSpacing:"-0.5px" }}>
-              {view==="dashboard"?"Dashboard":view==="journal"?"Journal":"Analytics"}
+              {NAV.find(n=>n.id===view)?.label||"Dashboard"}
             </div>
             <div style={{ fontSize:11,color:"#444",marginTop:3 }}>
               {new Date().toLocaleDateString("fr-FR",{ weekday:"long",day:"numeric",month:"long",year:"numeric" })}
             </div>
           </div>
-          <button onClick={()=>setShowForm(true)} style={S.addBtn}>
-            <span style={{ fontSize:18,lineHeight:1 }}>+</span><span> Nouveau Trade</span>
-          </button>
+          {view!=="settings"&&(
+            <button onClick={()=>setShowForm(true)} style={S.addBtn}>
+              <span style={{ fontSize:18,lineHeight:1 }}>+</span><span> Nouveau Trade</span>
+            </button>
+          )}
         </div>
 
-        {loading ? (
+        {loading&&view!=="settings" ? (
           <div style={{ color:"#555",fontSize:13,padding:40,textAlign:"center" }}>Chargement…</div>
         ) : (<>
 
@@ -349,7 +459,11 @@ export default function App() {
           {/* JOURNAL */}
           {view==="journal"&&(<>
             <div style={{ display:"flex",gap:8,flexWrap:"wrap",marginBottom:18 }}>
-              {[{ key:"instrument",opts:INSTRUMENTS.slice(0,-1),label:"Instrument" },{ key:"direction",opts:["LONG","SHORT"],label:"Direction" },{ key:"strategy",opts:STRATEGIES.slice(0,-1),label:"Stratégie" }].map(f=>(
+              {[
+                { key:"instrument",opts:settings.instruments.filter(x=>x!=="Autre"),label:"Instrument" },
+                { key:"direction",opts:["LONG","SHORT"],label:"Direction" },
+                { key:"strategy",opts:settings.strategies.filter(x=>x!=="Autre"),label:"Stratégie" },
+              ].map(f=>(
                 <select key={f.key} value={filter[f.key]} onChange={e=>setFilter({...filter,[f.key]:e.target.value})} style={S.pill}>
                   <option value="">{f.label}</option>
                   {f.opts.map(o=><option key={o} value={o}>{o}</option>)}
@@ -443,6 +557,12 @@ export default function App() {
                   </div>
                 </div>
           )}
+
+          {/* SETTINGS */}
+          {view==="settings"&&(
+            <SettingsPanel settings={settings} onChange={updateSettings}/>
+          )}
+
         </>)}
       </main>
 
@@ -458,9 +578,30 @@ export default function App() {
               {[{ k:"date",l:"Date",t:"date" },{ k:"size",l:"Taille (lots)",t:"number" },{ k:"entry",l:"Entrée",t:"number" },{ k:"exit",l:"Sortie",t:"number" },{ k:"pnl",l:"P&L ($)",t:"number" }].map(f=>(
                 <div key={f.k}><label style={S.lbl}>{f.l}</label><input type={f.t} step="any" value={form[f.k]} onChange={e=>setForm({...form,[f.k]:e.target.value})} style={S.inp}/></div>
               ))}
-              {[{ k:"instrument",l:"Instrument",opts:INSTRUMENTS },{ k:"direction",l:"Direction",opts:["LONG","SHORT"] },{ k:"strategy",l:"Stratégie",opts:STRATEGIES },{ k:"session",l:"Session",opts:SESSIONS }].map(f=>(
-                <div key={f.k}><label style={S.lbl}>{f.l}</label><select value={form[f.k]} onChange={e=>setForm({...form,[f.k]:e.target.value})} style={S.inp}>{f.opts.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
-              ))}
+              <div>
+                <label style={S.lbl}>Instrument</label>
+                <select value={form.instrument} onChange={e=>setForm({...form,instrument:e.target.value})} style={S.inp}>
+                  {settings.instruments.map(o=><option key={o} value={o}>{o}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={S.lbl}>Direction</label>
+                <select value={form.direction} onChange={e=>setForm({...form,direction:e.target.value})} style={S.inp}>
+                  {["LONG","SHORT"].map(o=><option key={o} value={o}>{o}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={S.lbl}>Stratégie</label>
+                <select value={form.strategy} onChange={e=>setForm({...form,strategy:e.target.value})} style={S.inp}>
+                  {settings.strategies.map(o=><option key={o} value={o}>{o}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={S.lbl}>Session</label>
+                <select value={form.session} onChange={e=>setForm({...form,session:e.target.value})} style={S.inp}>
+                  {settings.sessions.map(o=><option key={o} value={o}>{o}</option>)}
+                </select>
+              </div>
             </div>
             <div style={{ marginTop:12 }}>
               <label style={S.lbl}>Discipline émotionnelle</label>
@@ -509,6 +650,6 @@ const S = {
   linkBtn:{ background:"none",border:"none",color:"#22d3a0",fontSize:12,cursor:"pointer",fontFamily:"inherit",padding:0 },
 };
 
-const css = document.createElement("style");
+const css=document.createElement("style");
 css.textContent=`@media(max-width:640px){aside{display:none!important}main{padding:80px 14px 24px!important}}*{box-sizing:border-box}body{margin:0;background:#0a0d12}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:99px}select option{background:#1a1f2e}input,select,textarea{color-scheme:dark}`;
 document.head.appendChild(css);
