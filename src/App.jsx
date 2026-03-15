@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { supabase } from "./supabase.js";
 
-const DEFAULT_INSTRUMENTS = ["EUR/USD","GBP/USD","BTC/USD","ETH/USD","SPX500","NAS100","GOLD","OIL","DAX","BUND","Autre"];
+const DEFAULT_INSTRUMENTS = ["EUR/USD","GBP/USD","BTC/USD","ETH/USD","SPX500","NAS100","GOLD","DAX","BUND","OIL","Autre"];
 const DEFAULT_STRATEGIES  = ["Breakout","Scalping","Swing","Trend Following","Mean Reversion","News Trading","Autre"];
 const DEFAULT_SESSIONS    = ["London","New York","Asian","Overlap"];
 const SETTINGS_KEY        = "edge_settings";
