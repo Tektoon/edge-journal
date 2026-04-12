@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { supabase } from "./supabase.js";
+import CalendarView from "./CalendarView.jsx";
 
 const DEFAULT_INSTRUMENTS = ["EUR/USD","GBP/USD","BTC/USD","ETH/USD","SPX500","NAS100","GOLD","OIL","DAX","Autre"];
 const DEFAULT_STRATEGIES  = ["Breakout","Scalping","Swing","Trend Following","Mean Reversion","News Trading","Autre"];
@@ -321,6 +322,7 @@ export default function App() {
   const NAV=[
     { id:"dashboard", icon:"▦", label:"Dashboard"  },
     { id:"journal",   icon:"≡", label:"Journal"    },
+    { id:"calendar",  icon:"◫", label:"Calendrier" },
     { id:"stats",     icon:"◑", label:"Analytics"  },
     { id:"settings",  icon:"⚙", label:"Paramètres" },
   ];
@@ -512,6 +514,13 @@ export default function App() {
               ))}
             </div>
           </>)}
+
+          {/* CALENDAR */}
+          {view==="calendar"&&(
+            trades.length===0
+              ? <div style={{ textAlign:"center",color:"#444",padding:60,fontSize:14 }}>Ajoute des trades pour voir ton calendrier de performance.</div>
+              : <CalendarView trades={trades}/>
+          )}
 
           {/* ANALYTICS */}
           {view==="stats"&&(
