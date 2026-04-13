@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { supabase } from "./supabase.js";
 import CalendarView from "./CalendarView.jsx";
+import ImportCSV from "./ImportCSV.jsx";
 
 const DEFAULT_INSTRUMENTS = ["EUR/USD","GBP/USD","BTC/USD","ETH/USD","SPX500","NAS100","GOLD","OIL","DAX","Autre"];
 const DEFAULT_STRATEGIES  = ["Breakout","Scalping","Swing","Trend Following","Mean Reversion","News Trading","Autre"];
@@ -324,6 +325,7 @@ export default function App() {
     { id:"journal",   icon:"≡", label:"Journal"    },
     { id:"calendar",  icon:"◫", label:"Calendrier" },
     { id:"stats",     icon:"◑", label:"Analytics"  },
+    { id:"import",    icon:"↑", label:"Import CSV" },
     { id:"settings",  icon:"⚙", label:"Paramètres" },
   ];
 
@@ -565,6 +567,11 @@ export default function App() {
                     })()}
                   </div>
                 </div>
+          )}
+
+          {/* IMPORT CSV */}
+          {view==="import"&&(
+            <ImportCSV session={session} onImported={()=>{ loadTrades(); setView("journal"); }}/>
           )}
 
           {/* SETTINGS */}
