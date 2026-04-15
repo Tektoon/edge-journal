@@ -359,11 +359,15 @@ export default function App() {
 
       {/* sidebar desktop */}
       <aside style={S.sidebar}>
-        <div style={{ display:"flex",alignItems:"center",gap:10,padding:"0 18px 22px",borderBottom:"1px solid rgba(255,255,255,0.06)",marginBottom:14 }}>
-          <span style={{ color:"#22d3a0",fontSize:22 }}>◈</span>
-          <div>
-            <div style={{ fontWeight:900,fontSize:15,color:"#e8e8e8",letterSpacing:"0.1em" }}>EDGE</div>
-            <div style={{ fontSize:9,color:"#444",letterSpacing:"0.15em",marginTop:2 }}>Trading Journal</div>
+        <div style={{ padding:"0 14px 20px",borderBottom:"1px solid rgba(255,255,255,0.05)",marginBottom:10 }}>
+          <div style={{ display:"flex",alignItems:"center",gap:10 }}>
+            <div style={{ width:34,height:34,borderRadius:10,background:"rgba(34,211,160,0.1)",border:"1px solid rgba(34,211,160,0.2)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
+              <span style={{ color:"#22d3a0",fontSize:18,lineHeight:1 }}>◈</span>
+            </div>
+            <div>
+              <div style={{ fontWeight:900,fontSize:15,color:"#e8e8e8",letterSpacing:"0.12em" }}>EDGE</div>
+              <div style={{ fontSize:8,color:"#2a3040",letterSpacing:"0.2em",marginTop:1 }}>TRADING JOURNAL</div>
+            </div>
           </div>
         </div>
         <nav style={{ display:"flex",flexDirection:"column",gap:3,padding:"0 10px" }}>
@@ -407,34 +411,54 @@ export default function App() {
           {view==="dashboard"&&(<>
             <div style={S.kpiGrid}>
               {[
-                { label:"P&L Total",value:fmt(stats.total),sub:`${stats.count} trades`,accent:stats.total>=0?"#22d3a0":"#ff4d6d" },
-                { label:"Win Rate",value:`${stats.wr}%`,sub:`${stats.wins}W / ${stats.losses}L`,accent:"#7eb4ff" },
-                { label:"Risk/Reward",value:`1 : ${stats.rr}`,sub:"Ratio moyen",accent:"#f5c842" },
-                { label:"Meilleur",value:trades.length?fmt(Math.max(...trades.map(t=>t.pnl))):"—",sub:"Meilleur trade",accent:"#22d3a0" },
+                { label:"P&L Total",value:fmt(stats.total),sub:`${stats.count} trades`,accent:stats.total>=0?"#22d3a0":"#ff4d6d",glow:stats.total>=0?"rgba(34,211,160,0.15)":"rgba(255,77,109,0.15)" },
+                { label:"Win Rate",value:`${stats.wr}%`,sub:`${stats.wins}W · ${stats.losses}L`,accent:"#7eb4ff",glow:"rgba(126,180,255,0.12)" },
+                { label:"Risk / Reward",value:`1 : ${stats.rr}`,sub:"Ratio moyen",accent:"#f5c842",glow:"rgba(245,200,66,0.1)" },
+                { label:"Meilleur Trade",value:trades.length?fmt(Math.max(...trades.map(t=>t.pnl))):"—",sub:"Pic de P&L",accent:"#22d3a0",glow:"rgba(34,211,160,0.1)" },
               ].map((k,i)=>(
-                <div key={i} style={S.kpiCard}>
-                  <div style={{ position:"absolute",top:0,left:0,right:0,height:2,background:k.accent }}/>
-                  <div style={{ fontSize:9,color:"#444",letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:8 }}>{k.label}</div>
-                  <div style={{ fontSize:20,fontWeight:900,color:k.accent,letterSpacing:"-0.5px" }}>{k.value}</div>
-                  <div style={{ fontSize:10,color:"#444",marginTop:5 }}>{k.sub}</div>
+                <div key={i} style={{ ...S.kpiCard,background:`linear-gradient(135deg,#0d1117 60%,${k.glow})` }}>
+                  <div style={{ position:"absolute",top:0,left:0,right:0,height:2,background:`linear-gradient(90deg,${k.accent},transparent)`,borderRadius:"14px 14px 0 0" }}/>
+                  <div style={{ fontSize:9,color:"#3a4050",letterSpacing:"0.14em",textTransform:"uppercase",fontWeight:700,marginBottom:10 }}>{k.label}</div>
+                  <div style={{ fontSize:26,fontWeight:900,color:k.accent,letterSpacing:"-1px",lineHeight:1 }}>{k.value}</div>
+                  <div style={{ fontSize:10,color:"#3a4a5a",marginTop:8,letterSpacing:"0.04em" }}>{k.sub}</div>
                 </div>
               ))}
             </div>
 
             {curve.length>1&&(
               <div style={S.card}>
-                <div style={S.cardTitle}>Courbe d'Équité</div>
-                <svg width="100%" height="130" style={{ display:"block",marginTop:14,overflow:"visible" }}>
-                  <defs><linearGradient id="gr" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#22d3a0" stopOpacity="0.3"/><stop offset="100%" stopColor="#22d3a0" stopOpacity="0"/></linearGradient></defs>
+                <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16 }}>
+                  <div style={S.cardTitle}>Courbe d'équité</div>
+                  <div style={{ fontSize:12,fontWeight:700,color:stats.total>=0?"#22d3a0":"#ff4d6d" }}>{fmt(stats.total)}</div>
+                </div>
+                <svg width="100%" height="140" style={{ display:"block",overflow:"visible" }}>
+                  <defs>
+                    <linearGradient id="gr" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#22d3a0" stopOpacity="0.25"/>
+                      <stop offset="100%" stopColor="#22d3a0" stopOpacity="0"/>
+                    </linearGradient>
+                  </defs>
+                  {/* grille horizontale */}
+                  {[0,33,66,100].map(pct=>(
+                    <line key={pct} x1="0" x2="100%" y1={`${pct}%`} y2={`${pct}%`} stroke="rgba(255,255,255,0.04)" strokeWidth="1"/>
+                  ))}
                   {(()=>{
-                    const pts=curve.map((p,i)=>({ x:`${(i/(curve.length-1))*100}%`,y:`${100-((p.cum-cMin)/cRange)*85-5}%` }));
+                    const pts=curve.map((p,i)=>({ x:`${(i/(curve.length-1))*100}%`,y:`${100-((p.cum-cMin)/cRange)*90-5}%` }));
                     const line=pts.map((p,i)=>`${i===0?"M":"L"}${p.x},${p.y}`).join(" ");
-                    const area=`${line} L${pts[pts.length-1].x},100% L${pts[0].x},100% Z`;
-                    return (<><path d={area} fill="url(#gr)"/><path d={line} fill="none" stroke="#22d3a0" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>{pts.map((p,i)=><circle key={i} cx={p.x} cy={p.y} r="3.5" fill="#0d1117" stroke="#22d3a0" strokeWidth="2"/>)}</>);
+                    const area=`${line} L${pts[pts.length-1].x},95% L${pts[0].x},95% Z`;
+                    return (<>
+                      <path d={area} fill="url(#gr)"/>
+                      <path d={line} fill="none" stroke="#22d3a0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      {pts.map((p,i)=>(
+                        <circle key={i} cx={p.x} cy={p.y} r="3" fill="#0d1117" stroke="#22d3a0" strokeWidth="2"/>
+                      ))}
+                    </>);
                   })()}
                 </svg>
-                <div style={{ display:"flex",justifyContent:"space-between",marginTop:6 }}>
-                  {curve.map((p,i)=><div key={i} style={{ fontSize:9,color:"#555" }}>{p.date}</div>)}
+                <div style={{ display:"flex",justifyContent:"space-between",marginTop:8,paddingTop:8,borderTop:"1px solid rgba(255,255,255,0.04)" }}>
+                  {curve.map((p,i)=>(
+                    <div key={i} style={{ fontSize:9,color:"#3a4050",letterSpacing:"0.04em" }}>{p.date}</div>
+                  ))}
                 </div>
               </div>
             )}
@@ -475,41 +499,48 @@ export default function App() {
               ))}
             </div>
             {filtered.length===0&&<div style={{ textAlign:"center",color:"#444",padding:60,fontSize:14 }}>Aucun trade. Clique sur <strong style={{ color:"#22d3a0" }}>+ Nouveau Trade</strong> !</div>}
-            <div style={{ display:"flex",flexDirection:"column",gap:10 }}>
+            <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
               {filtered.map(t=>(
-                <div key={t.id} style={{ ...S.card,cursor:"pointer",borderColor:expanded===t.id?"rgba(34,211,160,0.4)":"rgba(255,255,255,0.06)" }}
+                <div key={t.id}
+                  style={{
+                    background: expanded===t.id?"linear-gradient(135deg,#0f1520,#0d1117)":"#0d1117",
+                    border:`1px solid ${expanded===t.id?"rgba(34,211,160,0.25)":"rgba(255,255,255,0.05)"}`,
+                    borderRadius:14,padding:"14px 18px",cursor:"pointer",
+                    transition:"all 0.18s",
+                    boxShadow: expanded===t.id?"0 4px 24px rgba(0,0,0,0.3)":"none",
+                  }}
                   onClick={()=>setExpanded(expanded===t.id?null:t.id)}>
                   <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",gap:10 }}>
-                    <div style={{ display:"flex",alignItems:"center",gap:10,flex:1,minWidth:0 }}>
+                    <div style={{ display:"flex",alignItems:"center",gap:12,flex:1,minWidth:0 }}>
                       <DirBadge dir={t.direction}/>
                       <div style={{ minWidth:0 }}>
-                        <div style={{ fontWeight:700,fontSize:14,color:"#e8e8e8" }}>{t.instrument}</div>
-                        <div style={{ fontSize:11,color:"#555",marginTop:2 }}>{t.date} · {t.session}</div>
+                        <div style={{ fontWeight:800,fontSize:14,color:"#e8e8e8",letterSpacing:"0.02em" }}>{t.instrument}</div>
+                        <div style={{ fontSize:10,color:"#3a4a5a",marginTop:3,letterSpacing:"0.04em" }}>{t.date} · {t.session}</div>
                       </div>
-                      <div style={{ display:"flex",gap:4,flexWrap:"wrap" }}>{(t.tags||[]).slice(0,2).map((tag,i)=><Tag key={i} label={tag}/>)}</div>
+                      <div style={{ display:"flex",gap:5,flexWrap:"wrap" }}>{(t.tags||[]).slice(0,2).map((tag,i)=><Tag key={i} label={tag}/>)}</div>
                     </div>
                     <div style={{ textAlign:"right",flexShrink:0 }}>
-                      <div style={{ fontWeight:700,fontSize:16,color:t.pnl>=0?"#22d3a0":"#ff4d6d" }}>{fmt(t.pnl)}</div>
-                      <Dots value={t.emotions}/>
+                      <div style={{ fontWeight:900,fontSize:16,color:t.pnl>=0?"#22d3a0":"#ff4d6d",letterSpacing:"-0.5px" }}>{fmt(t.pnl)}</div>
+                      <div style={{ marginTop:4 }}><Dots value={t.emotions}/></div>
                     </div>
                   </div>
                   {expanded===t.id&&(
-                    <div style={{ marginTop:16,paddingTop:16,borderTop:"1px solid rgba(255,255,255,0.07)" }}>
-                      <div style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:12 }}>
+                    <div style={{ marginTop:16,paddingTop:16,borderTop:"1px solid rgba(255,255,255,0.06)" }}>
+                      <div style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14 }}>
                         {[["Entrée",t.entry],["Sortie",t.exit],["Taille",t.size]].map(([l,v])=>(
-                          <div key={l} style={{ background:"rgba(255,255,255,0.03)",borderRadius:8,padding:"9px 12px" }}>
-                            <div style={{ fontSize:9,color:"#444",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:4 }}>{l}</div>
-                            <div style={{ fontSize:15,fontWeight:700,color:"#ddd" }}>{v}</div>
+                          <div key={l} style={{ background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.05)",borderRadius:10,padding:"10px 14px" }}>
+                            <div style={{ fontSize:9,color:"#3a4050",textTransform:"uppercase",letterSpacing:"0.12em",fontWeight:700,marginBottom:5 }}>{l}</div>
+                            <div style={{ fontSize:15,fontWeight:800,color:"#ccc" }}>{v}</div>
                           </div>
                         ))}
                       </div>
                       <div style={{ marginBottom:10 }}>
-                        <div style={{ fontSize:9,color:"#444",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:4 }}>Stratégie</div>
-                        <div style={{ color:"#bbb",fontSize:13 }}>{t.strategy}</div>
+                        <div style={{ fontSize:9,color:"#3a4050",textTransform:"uppercase",letterSpacing:"0.12em",fontWeight:700,marginBottom:4 }}>Stratégie</div>
+                        <div style={{ color:"#aaa",fontSize:12 }}>{t.strategy}</div>
                       </div>
-                      {t.notes&&<div style={{ fontSize:13,color:"#888",fontStyle:"italic",lineHeight:1.6,marginBottom:12 }}>"{t.notes}"</div>}
+                      {t.notes&&<div style={{ fontSize:12,color:"#5a6570",fontStyle:"italic",lineHeight:1.7,marginBottom:12,padding:"10px 14px",background:"rgba(255,255,255,0.02)",borderRadius:8,borderLeft:"2px solid rgba(34,211,160,0.3)" }}>{t.notes}</div>}
                       {(t.tags||[]).length>0&&<div style={{ display:"flex",gap:5,flexWrap:"wrap",marginBottom:14 }}>{t.tags.map((tag,i)=><Tag key={i} label={tag}/>)}</div>}
-                      <button onClick={e=>{e.stopPropagation();deleteTrade(t.id);}} style={S.delBtn}>Supprimer</button>
+                      <button onClick={e=>{e.stopPropagation();deleteTrade(t.id);}} style={S.delBtn}>Supprimer ce trade</button>
                     </div>
                   )}
                 </div>
@@ -641,31 +672,124 @@ export default function App() {
 }
 
 const S = {
-  root:{ display:"flex",minHeight:"100vh",background:"#0a0d12",fontFamily:"'DM Mono','Fira Code','Courier New',monospace",color:"#c8c8c8" },
-  topbar:{ display:"none",position:"fixed",top:0,left:0,right:0,zIndex:60,background:"#0d1117",borderBottom:"1px solid rgba(255,255,255,0.07)",padding:"12px 16px",alignItems:"center",justifyContent:"space-between" },
-  burgerBtn:{ background:"none",border:"1px solid rgba(255,255,255,0.1)",borderRadius:8,color:"#bbb",padding:"6px 10px",cursor:"pointer",fontSize:16,fontFamily:"inherit" },
-  dropdown:{ position:"fixed",top:58,left:0,right:0,zIndex:59,background:"#0d1117",borderBottom:"1px solid rgba(255,255,255,0.08)",padding:"8px 12px",flexDirection:"column",gap:4 },
-  sidebar:{ width:210,background:"#0d1117",borderRight:"1px solid rgba(255,255,255,0.06)",display:"flex",flexDirection:"column",padding:"28px 0",position:"sticky",top:0,height:"100vh",flexShrink:0 },
-  navBtn:{ display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:8,background:"none",border:"none",color:"#555",cursor:"pointer",fontSize:13,fontFamily:"inherit",fontWeight:500,textAlign:"left",width:"100%" },
-  navActive:{ background:"rgba(34,211,160,0.1)",color:"#22d3a0" },
-  sideStats:{ marginTop:"auto",padding:"18px",borderTop:"1px solid rgba(255,255,255,0.06)",display:"flex",flexDirection:"column",gap:10 },
-  main:{ flex:1,padding:"32px 22px",maxWidth:860,overflowY:"auto" },
-  header:{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:22,gap:12 },
-  addBtn:{ display:"flex",alignItems:"center",gap:6,background:"#22d3a0",color:"#0a0d12",border:"none",borderRadius:8,padding:"10px 16px",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit",flexShrink:0 },
-  kpiGrid:{ display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:12,marginBottom:16 },
-  kpiCard:{ background:"#0d1117",border:"1px solid rgba(255,255,255,0.06)",borderRadius:12,padding:16,position:"relative",overflow:"hidden" },
-  card:{ background:"#0d1117",border:"1px solid rgba(255,255,255,0.06)",borderRadius:12,padding:18,marginBottom:14 },
-  cardTitle:{ fontSize:9,color:"#444",letterSpacing:"0.12em",textTransform:"uppercase" },
-  row:{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"11px 0",borderBottom:"1px solid rgba(255,255,255,0.05)",cursor:"pointer" },
-  pill:{ background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:8,padding:"7px 10px",color:"#bbb",fontSize:12,fontFamily:"inherit",cursor:"pointer",outline:"none" },
-  overlay:{ position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:100,padding:16 },
-  modal:{ background:"#0d1117",border:"1px solid rgba(255,255,255,0.1)",borderRadius:16,padding:24,width:"100%",maxWidth:500,maxHeight:"90vh",overflowY:"auto" },
-  lbl:{ fontSize:9,color:"#444",letterSpacing:"0.1em",textTransform:"uppercase",display:"block",marginBottom:5 },
-  inp:{ width:"100%",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"9px 10px",color:"#e8e8e8",fontSize:13,fontFamily:"inherit",boxSizing:"border-box",outline:"none" },
-  delBtn:{ background:"rgba(255,77,109,0.1)",border:"1px solid rgba(255,77,109,0.2)",color:"#ff4d6d",borderRadius:6,padding:"6px 14px",fontSize:12,cursor:"pointer",fontFamily:"inherit" },
-  linkBtn:{ background:"none",border:"none",color:"#22d3a0",fontSize:12,cursor:"pointer",fontFamily:"inherit",padding:0 },
+  root:{ display:"flex",minHeight:"100vh",background:"#080b10",fontFamily:"'DM Mono','Fira Code','Courier New',monospace",color:"#c8c8c8" },
+
+  /* ── topbar mobile ── */
+  topbar:{ display:"none",position:"fixed",top:0,left:0,right:0,zIndex:60,background:"rgba(10,13,18,0.95)",backdropFilter:"blur(12px)",borderBottom:"1px solid rgba(255,255,255,0.06)",padding:"12px 16px",alignItems:"center",justifyContent:"space-between" },
+  burgerBtn:{ background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:8,color:"#bbb",padding:"6px 12px",cursor:"pointer",fontSize:16,fontFamily:"inherit" },
+  dropdown:{ position:"fixed",top:58,left:0,right:0,zIndex:59,background:"rgba(10,13,18,0.98)",backdropFilter:"blur(12px)",borderBottom:"1px solid rgba(255,255,255,0.07)",padding:"8px 12px",flexDirection:"column",gap:2 },
+
+  /* ── sidebar ── */
+  sidebar:{
+    width:220,
+    background:"linear-gradient(180deg,#0d1117 0%,#0a0e14 100%)",
+    borderRight:"1px solid rgba(255,255,255,0.05)",
+    display:"flex",flexDirection:"column",
+    padding:"24px 0",position:"sticky",top:0,height:"100vh",flexShrink:0,
+  },
+  navBtn:{
+    display:"flex",alignItems:"center",gap:11,
+    padding:"10px 14px",margin:"1px 8px",
+    borderRadius:9,background:"none",border:"none",
+    color:"#4a5060",cursor:"pointer",fontSize:12,
+    fontFamily:"inherit",fontWeight:600,textAlign:"left",width:"calc(100% - 16px)",
+    letterSpacing:"0.04em",transition:"all 0.15s",
+  },
+  navActive:{
+    background:"rgba(34,211,160,0.08)",
+    color:"#22d3a0",
+    boxShadow:"inset 3px 0 0 #22d3a0",
+  },
+  sideStats:{
+    marginTop:"auto",padding:"16px 14px",
+    borderTop:"1px solid rgba(255,255,255,0.05)",
+    display:"flex",flexDirection:"column",gap:8,
+  },
+
+  /* ── main ── */
+  main:{ flex:1,padding:"36px 28px",maxWidth:900,overflowY:"auto" },
+  header:{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:28,gap:12 },
+
+  /* ── bouton principal ── */
+  addBtn:{
+    display:"flex",alignItems:"center",gap:7,
+    background:"#22d3a0",color:"#080b10",
+    border:"none",borderRadius:10,padding:"11px 20px",
+    fontWeight:800,fontSize:12,cursor:"pointer",
+    fontFamily:"inherit",flexShrink:0,
+    letterSpacing:"0.05em",
+    boxShadow:"0 0 20px rgba(34,211,160,0.25)",
+    transition:"box-shadow 0.2s",
+  },
+
+  /* ── KPI grid ── */
+  kpiGrid:{ display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:14,marginBottom:18 },
+  kpiCard:{
+    background:"#0d1117",
+    border:"1px solid rgba(255,255,255,0.06)",
+    borderRadius:14,padding:"18px 20px",
+    position:"relative",overflow:"hidden",
+  },
+
+  /* ── cards génériques ── */
+  card:{
+    background:"#0d1117",
+    border:"1px solid rgba(255,255,255,0.06)",
+    borderRadius:14,padding:"20px",marginBottom:14,
+  },
+  cardTitle:{ fontSize:9,color:"#3a4050",letterSpacing:"0.14em",textTransform:"uppercase",fontWeight:700,marginBottom:2 },
+
+  /* ── journal rows ── */
+  row:{
+    display:"flex",justifyContent:"space-between",alignItems:"center",
+    padding:"13px 0",borderBottom:"1px solid rgba(255,255,255,0.04)",cursor:"pointer",
+  },
+
+  /* ── filtres pill ── */
+  pill:{
+    background:"rgba(255,255,255,0.03)",
+    border:"1px solid rgba(255,255,255,0.08)",
+    borderRadius:9,padding:"8px 12px",
+    color:"#888",fontSize:11,fontFamily:"inherit",
+    cursor:"pointer",outline:"none",letterSpacing:"0.04em",
+  },
+
+  /* ── modal ── */
+  overlay:{ position:"fixed",inset:0,background:"rgba(0,0,0,0.88)",backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:100,padding:16 },
+  modal:{
+    background:"#0d1117",
+    border:"1px solid rgba(255,255,255,0.09)",
+    borderRadius:18,padding:26,
+    width:"100%",maxWidth:500,maxHeight:"90vh",overflowY:"auto",
+    boxShadow:"0 32px 80px rgba(0,0,0,0.6)",
+  },
+  lbl:{ fontSize:9,color:"#3a4050",letterSpacing:"0.12em",textTransform:"uppercase",display:"block",marginBottom:5,fontWeight:700 },
+  inp:{
+    width:"100%",
+    background:"rgba(255,255,255,0.03)",
+    border:"1px solid rgba(255,255,255,0.07)",
+    borderRadius:9,padding:"10px 12px",
+    color:"#e8e8e8",fontSize:12,fontFamily:"inherit",
+    boxSizing:"border-box",outline:"none",
+    transition:"border-color 0.15s",
+  },
+  delBtn:{ background:"rgba(255,77,109,0.08)",border:"1px solid rgba(255,77,109,0.2)",color:"#ff4d6d",borderRadius:7,padding:"7px 16px",fontSize:12,cursor:"pointer",fontFamily:"inherit" },
+  linkBtn:{ background:"none",border:"none",color:"#22d3a0",fontSize:11,cursor:"pointer",fontFamily:"inherit",padding:0,letterSpacing:"0.04em" },
 };
 
 const css=document.createElement("style");
-css.textContent=`@media(max-width:640px){aside{display:none!important}main{padding:80px 14px 24px!important}}*{box-sizing:border-box}body{margin:0;background:#0a0d12}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:99px}select option{background:#1a1f2e}input,select,textarea{color-scheme:dark}`;
+css.textContent=`
+  @media(max-width:640px){aside{display:none!important}main{padding:80px 14px 24px!important}}
+  *{box-sizing:border-box}
+  body{margin:0;background:#080b10}
+  ::-webkit-scrollbar{width:4px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08);border-radius:99px}
+  select option{background:#0d1117}
+  input,select,textarea{color-scheme:dark}
+  input:focus,select:focus,textarea:focus{border-color:rgba(34,211,160,0.4)!important;box-shadow:0 0 0 3px rgba(34,211,160,0.06)}
+  button.nav-btn:hover{background:rgba(255,255,255,0.04)!important;color:#aaa!important}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+  main > *{animation:fadeIn 0.25s ease both}
+`;
 document.head.appendChild(css);
