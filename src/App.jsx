@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { supabase } from "./supabase.js";
 import CalendarView from "./CalendarView.jsx";
 import ImportCSV from "./ImportCSV.jsx";
+import AdvancedStats from "./AdvancedStats.jsx";
 
 const DEFAULT_INSTRUMENTS = ["EUR/USD","GBP/USD","BTC/USD","ETH/USD","SPX500","NAS100","GOLD","OIL","DAX","Autre"];
 const DEFAULT_STRATEGIES  = ["Breakout","Scalping","Swing","Trend Following","Mean Reversion","News Trading","Autre"];
@@ -227,6 +228,7 @@ export default function App() {
   const [syncing,setSyncing]   = useState(false);
   const [view,setView]         = useState("dashboard");
   const [showForm,setShowForm] = useState(false);
+  const [editingTrade,setEditingTrade] = useState(null); // trade en cours d'édition
   const [expanded,setExpanded] = useState(null);
   const [menuOpen,setMenuOpen] = useState(false);
   const [filter,setFilter]     = useState({ instrument:"",direction:"",strategy:"" });
@@ -290,6 +292,40 @@ export default function App() {
     setSyncing(true);
     await supabase.from("trades").delete().eq("id",id);
     setSyncing(false); setExpanded(null); loadTrades();
+  }
+
+  function openEdit(t) {
+    setEditingTrade(t.id);
+    setForm({
+      date:t.date, instrument:t.instrument, direction:t.direction,
+      entry:t.entry, exit:t.exit, size:t.size, pnl:t.pnl,
+      strategy:t.strategy, session:t.session, emotions:t.emotions,
+      notes:t.notes||"", tags:(t.tags||[]).join(", "),
+    });
+    setShowForm(true);
+  }
+
+  async function saveTrade() {
+    if (!form) return;
+    setSyncing(true);
+    const payload = {
+      date:form.date, instrument:form.instrument, direction:form.direction,
+      entry:parseFloat(form.entry)||0, exit:parseFloat(form.exit)||0,
+      size:parseFloat(form.size)||0, pnl:parseFloat(form.pnl)||0,
+      strategy:form.strategy, session:form.session,
+      emotions:parseInt(form.emotions)||3, notes:form.notes,
+      tags:form.tags?form.tags.split(",").map(s=>s.trim()).filter(Boolean):[],
+    };
+    if (editingTrade) {
+      await supabase.from("trades").update(payload).eq("id",editingTrade);
+    } else {
+      await supabase.from("trades").insert({ ...payload, user_id:session.user.id });
+    }
+    setSyncing(false); setShowForm(false); setEditingTrade(null);
+    setForm({ date:today(), instrument:settings.instruments[0]||"", direction:"LONG",
+      entry:"", exit:"", size:"", pnl:"", strategy:settings.strategies[0]||"",
+      session:settings.sessions[0]||"", emotions:3, notes:"", tags:"" });
+    loadTrades();
   }
 
   const logout = ()=>supabase.auth.signOut();
@@ -541,6 +577,7 @@ export default function App() {
                       {t.notes&&<div style={{ fontSize:12,color:"#5a6570",fontStyle:"italic",lineHeight:1.7,marginBottom:12,padding:"10px 14px",background:"rgba(255,255,255,0.02)",borderRadius:8,borderLeft:"2px solid rgba(34,211,160,0.3)" }}>{t.notes}</div>}
                       {(t.tags||[]).length>0&&<div style={{ display:"flex",gap:5,flexWrap:"wrap",marginBottom:14 }}>{t.tags.map((tag,i)=><Tag key={i} label={tag}/>)}</div>}
                       <button onClick={e=>{e.stopPropagation();deleteTrade(t.id);}} style={S.delBtn}>Supprimer ce trade</button>
+                      <button onClick={e=>{e.stopPropagation();openEdit(t);}} style={{ ...S.editBtn,marginLeft:8 }}>✏ Modifier</button>
                     </div>
                   )}
                 </div>
@@ -557,47 +594,7 @@ export default function App() {
 
           {/* ANALYTICS */}
           {view==="stats"&&(
-            trades.length===0
-              ? <div style={{ textAlign:"center",color:"#444",padding:60,fontSize:14 }}>Ajoute des trades pour voir tes statistiques.</div>
-              : <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:14 }}>
-                  <BarCard title="P&L par Instrument" entries={byKey("instrument")} pos="#22d3a0" neg="#ff4d6d"/>
-                  <BarCard title="P&L par Stratégie"  entries={byKey("strategy")}   pos="#7eb4ff" neg="#ff4d6d"/>
-                  <div style={S.card}>
-                    <div style={S.cardTitle}>Discipline Émotionnelle</div>
-                    {(()=>{
-                      const avg=(trades.reduce((s,t)=>s+t.emotions,0)/trades.length).toFixed(1);
-                      const dist=[1,2,3,4,5].map(v=>({ v,n:trades.filter(t=>t.emotions===v).length }));
-                      const mx=Math.max(...dist.map(d=>d.n),1);
-                      return (<>
-                        <div style={{ textAlign:"center",marginBottom:14 }}>
-                          <div style={{ fontSize:38,fontWeight:900,color:"#f5c842" }}>{avg}</div>
-                          <div style={{ fontSize:11,color:"#555" }}>Score moyen / 5</div>
-                        </div>
-                        <div style={{ display:"flex",gap:8,alignItems:"flex-end",height:52 }}>
-                          {dist.map(d=>(
-                            <div key={d.v} style={{ flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4 }}>
-                              <div style={{ width:"100%",borderRadius:"4px 4px 0 0",opacity:0.85,background:d.v>=4?"#22d3a0":d.v>=3?"#f5c842":"#ff4d6d",height:`${(d.n/mx)*42+4}px` }}/>
-                              <span style={{ fontSize:10,color:"#555" }}>{d.v}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </>);
-                    })()}
-                  </div>
-                  <div style={S.card}>
-                    <div style={S.cardTitle}>Sessions</div>
-                    {(()=>{
-                      const m={};
-                      trades.forEach(t=>{ if(!m[t.session])m[t.session]={pnl:0,n:0}; m[t.session].pnl+=t.pnl; m[t.session].n++; });
-                      return Object.entries(m).map(([s,d])=>(
-                        <div key={s} style={S.row}>
-                          <div><div style={{ fontWeight:600,color:"#ddd",fontSize:13 }}>{s}</div><div style={{ fontSize:11,color:"#555" }}>{d.n} trade{d.n>1?"s":""}</div></div>
-                          <div style={{ fontWeight:700,color:d.pnl>=0?"#22d3a0":"#ff4d6d" }}>{fmt(d.pnl)}</div>
-                        </div>
-                      ));
-                    })()}
-                  </div>
-                </div>
+            <AdvancedStats trades={trades}/>
           )}
 
           {/* IMPORT CSV */}
@@ -615,11 +612,13 @@ export default function App() {
 
       {/* form modal */}
       {showForm&&(
-        <div style={S.overlay} onClick={()=>setShowForm(false)}>
+        <div style={S.overlay} onClick={()=>{ setShowForm(false); setEditingTrade(null); }}>
           <div style={S.modal} onClick={e=>e.stopPropagation()}>
             <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20 }}>
-              <div style={{ fontWeight:800,fontSize:18,color:"#e8e8e8",letterSpacing:"-0.5px" }}>Nouveau Trade</div>
-              <button onClick={()=>setShowForm(false)} style={{ background:"none",border:"none",color:"#555",fontSize:20,cursor:"pointer" }}>✕</button>
+              <div style={{ fontWeight:800,fontSize:18,color:"#e8e8e8",letterSpacing:"-0.5px" }}>
+                {editingTrade ? "✏ Modifier le Trade" : "Nouveau Trade"}
+              </div>
+              <button onClick={()=>{ setShowForm(false); setEditingTrade(null); }} style={{ background:"none",border:"none",color:"#555",fontSize:20,cursor:"pointer" }}>✕</button>
             </div>
             <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:10 }}>
               {[{ k:"date",l:"Date",t:"date" },{ k:"size",l:"Taille (lots)",t:"number" },{ k:"entry",l:"Entrée",t:"number" },{ k:"exit",l:"Sortie",t:"number" },{ k:"pnl",l:"P&L ($)",t:"number" }].map(f=>(
@@ -663,7 +662,9 @@ export default function App() {
             </div>
             <div style={{ marginTop:10 }}><label style={S.lbl}>Notes</label><textarea value={form.notes} onChange={e=>setForm({...form,notes:e.target.value})} style={{ ...S.inp,height:66,resize:"vertical" }} placeholder="Analyse du trade…"/></div>
             <div style={{ marginTop:10 }}><label style={S.lbl}>Tags (séparés par virgule)</label><input value={form.tags} onChange={e=>setForm({...form,tags:e.target.value})} style={S.inp} placeholder="A+, Erreur, FOMO…"/></div>
-            <button onClick={addTrade} style={{ ...S.addBtn,width:"100%",marginTop:18,justifyContent:"center" }}>Enregistrer le Trade</button>
+            <button onClick={saveTrade} style={{ ...S.addBtn,width:"100%",marginTop:18,justifyContent:"center" }}>
+              {editingTrade ? "✓ Sauvegarder les modifications" : "Enregistrer le Trade"}
+            </button>
           </div>
         </div>
       )}
@@ -774,6 +775,7 @@ const S = {
     transition:"border-color 0.15s",
   },
   delBtn:{ background:"rgba(255,77,109,0.08)",border:"1px solid rgba(255,77,109,0.2)",color:"#ff4d6d",borderRadius:7,padding:"7px 16px",fontSize:12,cursor:"pointer",fontFamily:"inherit" },
+  editBtn:{ background:"rgba(126,180,255,0.08)",border:"1px solid rgba(126,180,255,0.2)",color:"#7eb4ff",borderRadius:7,padding:"7px 16px",fontSize:12,cursor:"pointer",fontFamily:"inherit" },
   linkBtn:{ background:"none",border:"none",color:"#22d3a0",fontSize:11,cursor:"pointer",fontFamily:"inherit",padding:0,letterSpacing:"0.04em" },
 };
 
